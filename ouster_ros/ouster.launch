@@ -1,3 +1,4 @@
+<!-- template ouster launch file for use with ouster_ros package-->
 <launch>
 
   <arg name="sensor_hostname" default="" doc="hostname or IP in dotted decimal form of the sensor"/>
@@ -10,9 +11,10 @@
   <arg name="metadata" default="" doc="path to read or write metadata file when replaying or receiving sensor data, respectively"/>
   <arg name="viz" default="false" doc="whether to run a rviz"/>
   <arg name="rviz_config" default="-d $(find ouster_ros)/viz.rviz" doc="optional rviz config file"/>
-  <arg name="tf_prefix" default="" doc="namespace for tf transforms"/>
+  <arg name="tf_prefix" default="$(env DRONE_NAME)" doc="namespace for tf transforms"/>
   <arg name="udp_profile_lidar" default="" doc="lidar packet profile: LEGACY, RNG19_RFL8_SIG16_NIR16_DUAL"/>
 
+<group ns="$(env DRONE_NAME)">
   <node pkg="ouster_ros" name="os_node" type="os_node" output="screen" required="true">
     <param name="~/lidar_mode" type="string" value="$(arg lidar_mode)"/>
     <param name="~/timestamp_mode" type="string" value="$(arg timestamp_mode)"/>
@@ -24,23 +26,14 @@
     <param name="~/metadata" value="$(arg metadata)"/>
     <param name="~/udp_profile_lidar" value="$(arg udp_profile_lidar)"/>
   </node>
+</group>
 
-  <node pkg="ouster_ros" type="os_cloud_node" name="os_cloud_node" output="screen" required="true">
-    <remap from="~/os_config" to="/os_node/os_config"/>
-    <remap from="~/lidar_packets" to="/os_node/lidar_packets"/>
-    <remap from="~/imu_packets" to="/os_node/imu_packets"/>
+  <node pkg="ouster_ros" type="os_cloud_node" name="$(env DRONE_NAME)_os_cloud_node" output="screen" required="true">
+    <remap from="~/os_config" to="$(env DRONE_NAME)/os_node/os_config"/>
+    <remap from="~/lidar_packets" to="$(env DRONE_NAME)/os_node/lidar_packets"/>
+    <remap from="~/imu_packets" to="$(env DRONE_NAME)/os_node/imu_packets"/>
     <param name="~/tf_prefix" value="$(arg tf_prefix)"/>
   </node>
 
-  <node if="$(arg viz)" pkg="rviz" name="rviz" type="rviz" args="$(arg rviz_config)" output="screen" required="true" />
-  <node if="$(arg viz)" pkg="ouster_ros" name="img_node" type="img_node" output="screen" required="true">
-    <remap from="~/os_config" to="/os_node/os_config"/>
-    <remap from="~/points" to="/os_cloud_node/points"/>
-    <remap from="~/points2" to="/os_cloud_node/points2"/>
-  </node>
-
-  <!-- for compatibility with < 1.13 rosbags -->
-  <node pkg="topic_tools" name="relay_lidar" type="relay" args="/os1_node/lidar_packets /os_node/lidar_packets" />
-  <node pkg="topic_tools" name="relay_imu" type="relay" args="/os1_node/imu_packets /os_node/imu_packets" />
-
+  <node pkg="tf" type="static_transform_publisher" name="ouster_static_transform_publisher_$(env DRONE_NAME)" args="0 0 0 0 0 0 1 $(env DRONE_NAME)/t265_pose_frame $(env DRONE_NAME)/os_sensor 100" />
 </launch>
